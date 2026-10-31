@@ -16,7 +16,9 @@ const esbuildProblemMatcherPlugin = {
 		build.onEnd((result) => {
 			result.errors.forEach(({ text, location }) => {
 				console.error(`✘ [ERROR] ${text}`);
-				console.error(`    ${location.file}:${location.line}:${location.column}:`);
+				if (location) {
+					console.error(`    ${location.file}:${location.line}:${location.column}:`);
+				}
 			});
 			console.log('[watch] build finished');
 		});
@@ -40,7 +42,7 @@ async function main() {
 	// Extension host (Node) bundle
 	const extensionCtx = await esbuild.context({
 		...shared,
-		entryPoints: ['src/extension.ts'],
+		entryPoints: ['src/entry.ts'],
 		format: 'cjs',
 		platform: 'node',
 		outfile: 'dist/extension.js',
