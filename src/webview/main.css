@@ -1,0 +1,36 @@
+html,
+body,
+#root {
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	width: 100%;
+	overflow: hidden;
+}
+
+.canvas {
+	position: relative;
+	height: 100%;
+	width: 100%;
+	color: var(--vscode-foreground);
+	font-family: var(--vscode-font-family);
+	font-size: var(--vscode-font-size);
+}
+
+.canvas__folder {
+	position: absolute;
+	top: 8px;
+	left: 8px;
+	z-index: 5;
+	max-width: 60%;
+	padding: 2px 8px;
+	border-radius: 4px;
+	background: var(--vscode-editorWidget-background);
+	color: var(--vscode-descriptionForeground);
+	border: 1px solid var(--vscode-widget-border, transparent);
+	font-size: 11px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	pointer-events: none;
+}

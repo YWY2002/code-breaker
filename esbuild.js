@@ -23,30 +23,51 @@ const esbuildProblemMatcherPlugin = {
 	},
 };
 
+/** @type {import('esbuild').BuildOptions} */
+const shared = {
+	bundle: true,
+	minify: production,
+	sourcemap: !production,
+	sourcesContent: false,
+	logLevel: 'silent',
+	plugins: [
+		/* add to the end of plugins array */
+		esbuildProblemMatcherPlugin,
+	],
+};
+
 async function main() {
-	const ctx = await esbuild.context({
-		entryPoints: [
-			'src/extension.ts'
-		],
-		bundle: true,
+	// Extension host (Node) bundle
+	const extensionCtx = await esbuild.context({
+		...shared,
+		entryPoints: ['src/extension.ts'],
 		format: 'cjs',
-		minify: production,
-		sourcemap: !production,
-		sourcesContent: false,
 		platform: 'node',
 		outfile: 'dist/extension.js',
 		external: ['vscode'],
-		logLevel: 'silent',
-		plugins: [
-			/* add to the end of plugins array */
-			esbuildProblemMatcherPlugin,
-		],
 	});
+
+	// Webview (browser) bundle — React + React Flow. CSS imports are emitted
+	// alongside as dist/webview/main.css.
+	const webviewCtx = await esbuild.context({
+		...shared,
+		entryPoints: ['src/webview/main.tsx'],
+		format: 'esm',
+		platform: 'browser',
+		target: 'es2022',
+		outfile: 'dist/webview/main.js',
+		jsx: 'automatic',
+		define: {
+			'process.env.NODE_ENV': production ? '"production"' : '"development"',
+		},
+	});
+
+	const contexts = [extensionCtx, webviewCtx];
 	if (watch) {
-		await ctx.watch();
+		await Promise.all(contexts.map(ctx => ctx.watch()));
 	} else {
-		await ctx.rebuild();
-		await ctx.dispose();
+		await Promise.all(contexts.map(ctx => ctx.rebuild()));
+		await Promise.all(contexts.map(ctx => ctx.dispose()));
 	}
 }
 
