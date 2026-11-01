@@ -17,6 +17,21 @@ export function activate(context: vscode.ExtensionContext) {
 			CanvasPanel.show(context.extensionUri, folder);
 		})
 	);
+
+	// Explorer right-click on a file → "Use with Code Breaker". Adds one code
+	// node for that file to the canvas.
+	context.subscriptions.push(
+		vscode.commands.registerCommand('code-breaker.openFile', async (file?: vscode.Uri) => {
+			const uri = file ?? vscode.window.activeTextEditor?.document.uri;
+			if (!uri) {
+				vscode.window.showWarningMessage('Code Breaker: no file selected.');
+				return;
+			}
+			const folder = vscode.workspace.getWorkspaceFolder(uri)?.uri;
+			const panel = CanvasPanel.show(context.extensionUri, folder);
+			await panel.openFile(uri);
+		})
+	);
 }
 
 export function deactivate() {}

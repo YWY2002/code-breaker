@@ -21,6 +21,10 @@
       {
         "command": "code-breaker.openFolder",
         "title": "Use with Code Breaker"
+      },
+      {
+        "command": "code-breaker.openFile",
+        "title": "Use with Code Breaker"
       }
     ],
     "menus": {
@@ -28,12 +32,21 @@
         {
           "command": "code-breaker.openFolder",
           "when": "false"
+        },
+        {
+          "command": "code-breaker.openFile",
+          "when": "false"
         }
       ],
       "explorer/context": [
         {
           "command": "code-breaker.openFolder",
           "when": "explorerResourceIsFolder",
+          "group": "navigation@50"
+        },
+        {
+          "command": "code-breaker.openFile",
+          "when": "!explorerResourceIsFolder",
           "group": "navigation@50"
         }
       ]
