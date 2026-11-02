@@ -104,22 +104,15 @@
 	color: #fff;
 }
 
-/* Body */
+/* Body: CodeMirror host. Colours and fonts are set by the editor theme
+   (see CodeEditor.tsx); this only sizes it. */
 .code-node__editor {
 	flex: 1;
 	min-height: 0;
 	width: 100%;
-	margin: 0;
-	padding: 8px 10px;
-	border: 0;
-	outline: none;
-	resize: none;
-	box-sizing: border-box;
-	background: var(--vscode-editor-background);
-	color: var(--vscode-editor-foreground);
-	font-family: var(--vscode-editor-font-family, monospace);
-	font-size: var(--vscode-editor-font-size, 13px);
-	line-height: 1.45;
-	tab-size: 4;
 	cursor: text;
+}
+
+.code-node__editor .cm-editor {
+	height: 100%;
 }

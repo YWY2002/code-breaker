@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReactFlow, type Node, type NodeProps } from '@xyflow/react';
 import type { CodeFile } from '../../shared/messages';
 import { postToHost } from '../vscode';
+import { useVsCodeColorMode } from '../theme';
+import { CodeEditor } from './CodeEditor';
 import './CodeNode.css';
 
 export type CodeNodeData = CodeFile & {
@@ -14,6 +16,7 @@ export type CodeNodeType = Node<CodeNodeData, 'code'>;
 
 export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
 	const { updateNodeData } = useReactFlow<CodeNodeType>();
+	const colorMode = useVsCodeColorMode();
 
 	// Draft lives in the node; `data.content` is the last known on-disk text.
 	const [draft, setDraft] = useState(data.content);
@@ -38,13 +41,6 @@ export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
 		updateNodeData(id, { saveState: 'saving', saveError: undefined });
 		postToHost({ type: 'saveFile', path: data.path, content: draft });
 	}, [dirty, saving, draft, data.path, id, updateNodeData]);
-
-	const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-		if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-			e.preventDefault();
-			save();
-		}
-	};
 
 	return (
 		<div className="code-node">
@@ -71,14 +67,14 @@ export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
 					</button>
 				</div>
 			</header>
-			<textarea
+			<CodeEditor
 				className="code-node__editor nodrag nowheel"
 				value={draft}
-				onChange={e => setDraft(e.target.value)}
-				onKeyDown={onKeyDown}
-				spellCheck={false}
-				wrap="off"
-				data-language={data.language}
+				language={data.language}
+				filename={data.relativePath}
+				colorMode={colorMode}
+				onChange={setDraft}
+				onSave={save}
 			/>
 		</div>
 	);

@@ -8,17 +8,12 @@ import {
 	useNodesState,
 	useEdgesState,
 	useReactFlow,
-	type ColorMode,
 	type Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { nodeTypes, type CodeNodeType } from './nodes';
 import { onHostMessage, postToHost } from './vscode';
-
-/** VS Code marks the webview body with vscode-light / vscode-dark / vscode-high-contrast. */
-function readColorMode(): ColorMode {
-	return document.body.classList.contains('vscode-light') ? 'light' : 'dark';
-}
+import { useVsCodeColorMode } from './theme';
 
 /** New nodes land on a simple grid so they never stack on top of each other. */
 const GRID = { columns: 3, cellWidth: 560, cellHeight: 400 };
@@ -39,7 +34,7 @@ export function App() {
 
 function Canvas() {
 	const [folder, setFolder] = useState<string | null>(null);
-	const [colorMode, setColorMode] = useState<ColorMode>(readColorMode);
+	const colorMode = useVsCodeColorMode();
 	const [nodes, setNodes, onNodesChange] = useNodesState<CodeNodeType>([]);
 	const [edges, , onEdgesChange] = useEdgesState<Edge>([]);
 	const { fitView } = useReactFlow();
@@ -87,17 +82,10 @@ function Canvas() {
 			}
 		});
 
-		// Follow theme changes without reloading the webview.
-		const observer = new MutationObserver(() => setColorMode(readColorMode()));
-		observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-
 		// Host queues messages until it hears this.
 		postToHost({ type: 'ready' });
 
-		return () => {
-			unsubscribe();
-			observer.disconnect();
-		};
+		return unsubscribe;
 	}, [setNodes, fitView]);
 
 	return (
