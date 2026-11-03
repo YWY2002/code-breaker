@@ -170,6 +170,22 @@
 	to { box-shadow: 0 0 0 8px rgba(58, 12, 163, 0); }
 }
 
+.code-node__tool--muted {
+	opacity: 0.5;
+}
+
+/* Edge attachment points; present for geometry only. */
+.code-node .react-flow__handle.code-node__port {
+	width: 1px;
+	height: 1px;
+	min-width: 0;
+	min-height: 0;
+	border: 0;
+	background: transparent;
+	opacity: 0;
+	pointer-events: none;
+}
+
 .code-node__tool:disabled {
 	opacity: 0.4;
 	cursor: default;

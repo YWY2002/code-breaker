@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import type { CodeFile, HostToWebview, WebviewToHost } from './shared/messages';
+import { DependencyIndex } from './analysis';
+import type { CodeFile, HostToWebview, LinkEdge, WebviewToHost } from './shared/messages';
 
 /**
  * Hosts the React Flow canvas in a webview. One panel at a time; re-invoking
@@ -22,6 +23,7 @@ export class CanvasPanel {
 	/** Per-file debounce so a burst of keystrokes in VS Code becomes one update. */
 	private readonly pendingSync = new Map<string, ReturnType<typeof setTimeout>>();
 	private static readonly SYNC_DELAY_MS = 100;
+	private readonly index = new DependencyIndex();
 
 	public static show(extensionUri: vscode.Uri, folder?: vscode.Uri): CanvasPanel {
 		const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
@@ -73,15 +75,41 @@ export class CanvasPanel {
 
 	/** Reads a file and asks the webview to add a code node for it. */
 	public async openFile(uri: vscode.Uri) {
+		this.post({ type: 'openFile', file: await this.readCodeFile(uri) });
+		this.watchFile(uri);
+	}
+
+	private async readCodeFile(uri: vscode.Uri): Promise<CodeFile> {
 		const document = await vscode.workspace.openTextDocument(uri);
-		const file: CodeFile = {
+		return {
 			path: uri.fsPath,
 			relativePath: vscode.workspace.asRelativePath(uri, false),
 			content: document.getText(),
 			language: document.languageId,
 		};
-		this.post({ type: 'openFile', file });
-		this.watchFile(uri);
+	}
+
+	/** Finds what `path` imports and what imports it, and sends both to the canvas. */
+	private async sendLinks(path: string) {
+		try {
+			await this.index.ensureBuilt();
+			const dependencies = this.index.dependenciesOf(path);
+			const dependents = this.index.dependentsOf(path);
+			const edges: LinkEdge[] = [
+				...dependencies.map(target => ({ source: path, target })),
+				...dependents.map(source => ({ source, target: path })),
+			];
+			const linked = [...new Set([...dependencies, ...dependents])];
+			const files = await Promise.all(linked.map(p => this.readCodeFile(vscode.Uri.file(p))));
+			for (const file of files) {
+				this.watchFile(vscode.Uri.file(file.path));
+			}
+			this.post({ type: 'links', path, files, edges });
+		} catch (err) {
+			const error = err instanceof Error ? err.message : String(err);
+			vscode.window.showErrorMessage(`Code Breaker: could not resolve links for ${path}: ${error}`);
+			this.post({ type: 'links', path, files: [], edges: [] });
+		}
 	}
 
 	/**
@@ -138,6 +166,9 @@ export class CanvasPanel {
 				break;
 			case 'saveFile':
 				await this.saveFile(msg.path, msg.content);
+				break;
+			case 'requestLinks':
+				await this.sendLinks(msg.path);
 				break;
 		}
 	}
@@ -220,6 +251,7 @@ export class CanvasPanel {
 			watcher.dispose();
 		}
 		this.openFiles.clear();
+		this.index.dispose();
 		this.panel.dispose();
 		while (this.disposables.length) {
 			this.disposables.pop()?.dispose();

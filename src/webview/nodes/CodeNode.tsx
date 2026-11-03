@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { NodeResizer, useReactFlow, type Node, type NodeProps } from '@xyflow/react';
+import { Handle, NodeResizer, Position, useReactFlow, type Node, type NodeProps } from '@xyflow/react';
 import type { CodeFile } from '../../shared/messages';
 import { postToHost } from '../vscode';
 import { useVsCodeColorMode } from '../theme';
@@ -10,6 +10,8 @@ export type CodeNodeData = CodeFile & {
 	/** Set by App when the host confirms (or rejects) a save. */
 	saveState?: 'idle' | 'saving' | 'saved' | 'error';
 	saveError?: string;
+	/** 'none' = the last link request found no workspace imports either way. */
+	linkState?: 'idle' | 'loading' | 'none';
 };
 
 export type CodeNodeType = Node<CodeNodeData, 'code'>;
@@ -53,6 +55,18 @@ export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
 		setStale(false);
 	}, [data.content]);
 
+	const requestLinks = useCallback(() => {
+		updateNodeData(id, { linkState: 'loading' });
+		postToHost({ type: 'requestLinks', path: data.path });
+	}, [id, data.path, updateNodeData]);
+
+	const linkTitle =
+		data.linkState === 'loading'
+			? 'Finding imports…'
+			: data.linkState === 'none'
+				? 'No imports to or from this file in the workspace'
+				: 'Show files this imports and files that import it';
+
 	const save = useCallback(() => {
 		if (!dirty || saving) {
 			return;
@@ -63,6 +77,10 @@ export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
 
 	return (
 		<div className="code-node">
+			{/* Invisible ports so dependency edges attach at the sides: imports
+			    leave on the right, importers arrive on the left. */}
+			<Handle type="target" position={Position.Left} className="code-node__port" isConnectable={false} />
+			<Handle type="source" position={Position.Right} className="code-node__port" isConnectable={false} />
 			{/* Edge lines resize one axis; corner handles resize both. */}
 			<NodeResizer
 				minWidth={CODE_NODE_SIZE.minWidth}
@@ -77,6 +95,16 @@ export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
 					{dirty && <span className="code-node__dirty" aria-label="Unsaved changes">●</span>}
 				</div>
 				<div className="code-node__tools">
+					<button
+						type="button"
+						className={`code-node__tool nodrag${data.linkState === 'none' ? ' code-node__tool--muted' : ''}`}
+						onClick={requestLinks}
+						disabled={data.linkState === 'loading'}
+						title={linkTitle}
+						aria-label="Show links"
+					>
+						<LinksIcon />
+					</button>
 					{stale && (
 						<button
 							type="button"
@@ -116,6 +144,17 @@ export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
 			/>
 			</div>
 		</div>
+	);
+}
+
+function LinksIcon() {
+	return (
+		<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<circle cx="3" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
+			<circle cx="13" cy="3.5" r="2" stroke="currentColor" strokeWidth="1.5" />
+			<circle cx="13" cy="12.5" r="2" stroke="currentColor" strokeWidth="1.5" />
+			<path d="M4.8 7.1l6.4-2.7M4.8 8.9l6.4 2.7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+		</svg>
 	);
 }
 

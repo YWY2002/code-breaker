@@ -15,14 +15,27 @@ export type CodeFile = {
 	language?: string;
 };
 
+/** A dependency edge: `source` imports `target`. Both are absolute paths (node ids). */
+export type LinkEdge = {
+	source: string;
+	target: string;
+};
+
 export type HostToWebview =
 	| { type: 'setFolder'; path: string | null }
 	| { type: 'openFile'; file: CodeFile }
 	/** The file changed in VS Code (editor edit, save, or on disk) after it was opened on the canvas. */
 	| { type: 'fileChanged'; path: string; content: string }
+	/**
+	 * Answer to `requestLinks`: every file linked to `path` (the webview adds
+	 * nodes for ones it doesn't have) and the edges touching `path`.
+	 */
+	| { type: 'links'; path: string; files: CodeFile[]; edges: LinkEdge[] }
 	/** `content` echoes what was written so the webview can mark the node clean. */
 	| { type: 'saved'; path: string; ok: boolean; content?: string; error?: string };
 
 export type WebviewToHost =
 	| { type: 'ready' }
-	| { type: 'saveFile'; path: string; content: string };
+	| { type: 'saveFile'; path: string; content: string }
+	/** Pull the dependencies and dependents of a file onto the canvas. */
+	| { type: 'requestLinks'; path: string };
