@@ -6,21 +6,97 @@
 	--cn-header-fg: #3a0ca3;
 	--cn-radius: 10px;
 
+	/* Size comes from the node's width/height (set in App, changed by NodeResizer).
+	   Overflow stays visible here so the resize handles can sit on the edges;
+	   the card below does the clipping. */
+	position: relative;
+	width: 100%;
+	height: 100%;
+	font-family: var(--vscode-font-family);
+	font-size: 12px;
+}
+
+.code-node__card {
 	display: flex;
 	flex-direction: column;
-	width: 520px;
-	height: 360px;
+	width: 100%;
+	height: 100%;
 	border-radius: var(--cn-radius);
 	overflow: hidden;
 	background: var(--vscode-editor-background);
 	border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-	font-family: var(--vscode-font-family);
-	font-size: 12px;
+	box-sizing: border-box;
 }
 
-.react-flow__node.selected .code-node {
+.react-flow__node.selected .code-node__card {
 	border-color: var(--vscode-focusBorder);
+}
+
+/* Resize controls (React Flow NodeResizer). Selectors are deliberately
+   specific to beat React Flow's own .react-flow__resize-control rules.
+
+   Edge lines are an invisible 6px grab strip; hovering one (or a corner)
+   draws a 2px ring on the card so the highlight follows the rounded corners
+   instead of being a straight bar. Corner handles are round dots sitting on
+   the corner arc, shown while the node is hovered or selected. */
+.code-node .react-flow__resize-control.code-node__resize-line {
+	border-width: 0;
+	background: transparent;
+	z-index: 2;
+}
+
+.code-node .react-flow__resize-control.code-node__resize-line.left,
+.code-node .react-flow__resize-control.code-node__resize-line.right {
+	width: 6px;
+}
+
+.code-node .react-flow__resize-control.code-node__resize-line.top,
+.code-node .react-flow__resize-control.code-node__resize-line.bottom {
+	height: 6px;
+}
+
+/* The controls precede the card in the DOM, so a hovered control can ring it. */
+.code-node__card {
+	transition: box-shadow 120ms;
+}
+
+.code-node .code-node__resize-line:hover ~ .code-node__card,
+.code-node .code-node__resize-handle:hover ~ .code-node__card {
+	box-shadow: 0 0 0 2px var(--cn-header-start), 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.code-node .react-flow__resize-control.code-node__resize-handle {
+	/* Inset so the dot's centre lands on the 45° point of the corner arc:
+	   r - r/√2 ≈ 3px for a 10px radius. */
+	--cn-handle-inset: 3px;
+	width: 12px;
+	height: 12px;
+	border: 2px solid var(--cn-header-end);
+	border-radius: 50%;
+	background-color: var(--cn-header-fg);
+	box-sizing: border-box;
+	opacity: 0;
+	transition: opacity 120ms;
+	z-index: 3;
+}
+
+.code-node .react-flow__resize-control.code-node__resize-handle.left {
+	left: var(--cn-handle-inset);
+}
+.code-node .react-flow__resize-control.code-node__resize-handle.right {
+	left: calc(100% - var(--cn-handle-inset));
+}
+.code-node .react-flow__resize-control.code-node__resize-handle.top {
+	top: var(--cn-handle-inset);
+}
+.code-node .react-flow__resize-control.code-node__resize-handle.bottom {
+	top: calc(100% - var(--cn-handle-inset));
+}
+
+.react-flow__node:hover .code-node .react-flow__resize-control.code-node__resize-handle,
+.react-flow__node.selected .code-node .react-flow__resize-control.code-node__resize-handle {
+	opacity: 1;
 }
 
 /* Top bar: exactly two equal columns, gradient across the whole width. */

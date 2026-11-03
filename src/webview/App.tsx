@@ -11,7 +11,7 @@ import {
 	type Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { nodeTypes, type CodeNodeType } from './nodes';
+import { nodeTypes, CODE_NODE_SIZE, type CodeNodeType } from './nodes';
 import { onHostMessage, postToHost } from './vscode';
 import { useVsCodeColorMode } from './theme';
 
@@ -60,6 +60,9 @@ function Canvas() {
 								id: msg.file.path,
 								type: 'code',
 								position: gridPosition(current.length),
+								// Initial size; NodeResizer updates these as the user drags.
+								width: CODE_NODE_SIZE.width,
+								height: CODE_NODE_SIZE.height,
 								data: { ...msg.file, saveState: 'idle' },
 							},
 						];

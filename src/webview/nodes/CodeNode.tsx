@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useReactFlow, type Node, type NodeProps } from '@xyflow/react';
+import { NodeResizer, useReactFlow, type Node, type NodeProps } from '@xyflow/react';
 import type { CodeFile } from '../../shared/messages';
 import { postToHost } from '../vscode';
 import { useVsCodeColorMode } from '../theme';
@@ -13,6 +13,8 @@ export type CodeNodeData = CodeFile & {
 };
 
 export type CodeNodeType = Node<CodeNodeData, 'code'>;
+
+export const CODE_NODE_SIZE = { width: 520, height: 360, minWidth: 280, minHeight: 160 };
 
 export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
 	const { updateNodeData } = useReactFlow<CodeNodeType>();
@@ -44,6 +46,14 @@ export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
 
 	return (
 		<div className="code-node">
+			{/* Edge lines resize one axis; corner handles resize both. */}
+			<NodeResizer
+				minWidth={CODE_NODE_SIZE.minWidth}
+				minHeight={CODE_NODE_SIZE.minHeight}
+				lineClassName="code-node__resize-line"
+				handleClassName="code-node__resize-handle"
+			/>
+			<div className="code-node__card">
 			<header className="code-node__header">
 				<div className="code-node__path" title={data.path}>
 					<span className="code-node__path-text">{data.relativePath}</span>
@@ -76,6 +86,7 @@ export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
 				onChange={setDraft}
 				onSave={save}
 			/>
+			</div>
 		</div>
 	);
 }
