@@ -17,6 +17,12 @@ export class CanvasPanel {
 	private ready = false;
 	private queue: HostToWebview[] = [];
 
+	/** Files currently shown on the canvas, keyed by fsPath, with their disk watcher. */
+	private readonly openFiles = new Map<string, vscode.FileSystemWatcher>();
+	/** Per-file debounce so a burst of keystrokes in VS Code becomes one update. */
+	private readonly pendingSync = new Map<string, ReturnType<typeof setTimeout>>();
+	private static readonly SYNC_DELAY_MS = 100;
+
 	public static show(extensionUri: vscode.Uri, folder?: vscode.Uri): CanvasPanel {
 		const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
 
@@ -52,6 +58,17 @@ export class CanvasPanel {
 			this.disposables
 		);
 		this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+
+		// Live edits in a VS Code editor (fires per keystroke, debounced below).
+		vscode.workspace.onDidChangeTextDocument(
+			e => {
+				if (this.openFiles.has(e.document.uri.fsPath)) {
+					this.scheduleSync(e.document.uri);
+				}
+			},
+			null,
+			this.disposables
+		);
 	}
 
 	/** Reads a file and asks the webview to add a code node for it. */
@@ -64,6 +81,51 @@ export class CanvasPanel {
 			language: document.languageId,
 		};
 		this.post({ type: 'openFile', file });
+		this.watchFile(uri);
+	}
+
+	/**
+	 * Watches the file on disk so changes made outside an editor (git
+	 * checkout, formatter, another tool) reach the canvas too. Editor edits
+	 * are covered by onDidChangeTextDocument.
+	 */
+	private watchFile(uri: vscode.Uri) {
+		if (this.openFiles.has(uri.fsPath)) {
+			return;
+		}
+		const dir = vscode.Uri.joinPath(uri, '..');
+		const name = uri.path.slice(uri.path.lastIndexOf('/') + 1);
+		const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(dir, name));
+		watcher.onDidChange(() => this.scheduleSync(uri));
+		this.openFiles.set(uri.fsPath, watcher);
+	}
+
+	private scheduleSync(uri: vscode.Uri) {
+		const key = uri.fsPath;
+		const pending = this.pendingSync.get(key);
+		if (pending) {
+			clearTimeout(pending);
+		}
+		this.pendingSync.set(
+			key,
+			setTimeout(() => {
+				this.pendingSync.delete(key);
+				void this.syncFile(uri);
+			}, CanvasPanel.SYNC_DELAY_MS)
+		);
+	}
+
+	/** Pushes the current text of a file to the canvas. Prefers the live editor buffer over disk. */
+	private async syncFile(uri: vscode.Uri) {
+		try {
+			const open = vscode.workspace.textDocuments.find(d => d.uri.fsPath === uri.fsPath);
+			const content = open
+				? open.getText()
+				: Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8');
+			this.post({ type: 'fileChanged', path: uri.fsPath, content });
+		} catch {
+			// File may have been deleted or be mid-write; the next change event will retry.
+		}
 	}
 
 	private async onMessage(msg: WebviewToHost) {
@@ -150,6 +212,14 @@ export class CanvasPanel {
 
 	public dispose() {
 		CanvasPanel.current = undefined;
+		for (const timer of this.pendingSync.values()) {
+			clearTimeout(timer);
+		}
+		this.pendingSync.clear();
+		for (const watcher of this.openFiles.values()) {
+			watcher.dispose();
+		}
+		this.openFiles.clear();
 		this.panel.dispose();
 		while (this.disposables.length) {
 			this.disposables.pop()?.dispose();

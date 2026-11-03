@@ -18,6 +18,8 @@ export type CodeFile = {
 export type HostToWebview =
 	| { type: 'setFolder'; path: string | null }
 	| { type: 'openFile'; file: CodeFile }
+	/** The file changed in VS Code (editor edit, save, or on disk) after it was opened on the canvas. */
+	| { type: 'fileChanged'; path: string; content: string }
 	/** `content` echoes what was written so the webview can mark the node clean. */
 	| { type: 'saved'; path: string; ok: boolean; content?: string; error?: string };
 

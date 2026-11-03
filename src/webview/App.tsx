@@ -70,6 +70,17 @@ function Canvas() {
 					// Let the node mount before framing it.
 					window.requestAnimationFrame(() => void fitView({ padding: 0.2, duration: 300 }));
 					break;
+				case 'fileChanged':
+					// Only the on-disk content moves; the node decides whether to
+					// adopt it or keep the user's draft (see CodeNode).
+					setNodes(current =>
+						current.map(n =>
+							n.id === msg.path && n.data.content !== msg.content
+								? { ...n, data: { ...n.data, content: msg.content } }
+								: n
+						)
+					);
+					break;
 				case 'saved':
 					setNodes(current =>
 						current.map(n => {

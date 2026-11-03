@@ -22,18 +22,35 @@ export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
 
 	// Draft lives in the node; `data.content` is the last known on-disk text.
 	const [draft, setDraft] = useState(data.content);
+	const draftRef = useRef(draft);
+	draftRef.current = draft;
 	const lastContent = useRef(data.content);
+	// True when the file changed in VS Code while this node had unsaved edits.
+	const [stale, setStale] = useState(false);
 	const dirty = draft !== data.content;
 	const saving = data.saveState === 'saving';
 
-	// When on-disk content changes (save confirmed, or file re-opened), adopt
-	// it unless the draft has edits relative to the previous content.
+	// When the file changes in VS Code (or a save is confirmed), follow it if
+	// the node has no edits of its own; otherwise keep the draft and flag it
+	// so the user can choose to reload.
 	useEffect(() => {
-		if (data.content !== lastContent.current) {
-			const previous = lastContent.current;
-			lastContent.current = data.content;
-			setDraft(prev => (prev === previous ? data.content : prev));
+		if (data.content === lastContent.current) {
+			return;
 		}
+		const previous = lastContent.current;
+		lastContent.current = data.content;
+		const current = draftRef.current;
+		if (current === previous || current === data.content) {
+			setDraft(data.content);
+			setStale(false);
+		} else {
+			setStale(true);
+		}
+	}, [data.content]);
+
+	const reload = useCallback(() => {
+		setDraft(data.content);
+		setStale(false);
 	}, [data.content]);
 
 	const save = useCallback(() => {
@@ -60,6 +77,17 @@ export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
 					{dirty && <span className="code-node__dirty" aria-label="Unsaved changes">●</span>}
 				</div>
 				<div className="code-node__tools">
+					{stale && (
+						<button
+							type="button"
+							className="code-node__tool code-node__tool--attention nodrag"
+							onClick={reload}
+							title="File changed in VS Code. Reload it here (discards this node's edits)"
+							aria-label="Reload from file"
+						>
+							<ReloadIcon />
+						</button>
+					)}
 					{data.saveState === 'error' && (
 						<span className="code-node__status code-node__status--error" title={data.saveError}>
 							!
@@ -88,6 +116,20 @@ export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
 			/>
 			</div>
 		</div>
+	);
+}
+
+function ReloadIcon() {
+	return (
+		<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<path
+				d="M13 8a5 5 0 1 1-1.5-3.6"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+			/>
+			<path d="M13 2.5v3h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+		</svg>
 	);
 }
 
