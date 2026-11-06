@@ -149,6 +149,12 @@ function Canvas() {
 				defaultEdgeOptions={linkEdgeOptions}
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}
+				// Fires for the node's remove button and for the Delete/Backspace key.
+				onNodesDelete={deleted => {
+					for (const node of deleted) {
+						postToHost({ type: 'closeFile', path: node.id });
+					}
+				}}
 				colorMode={colorMode}
 				fitView
 				minZoom={0.1}

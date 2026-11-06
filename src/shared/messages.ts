@@ -38,4 +38,6 @@ export type WebviewToHost =
 	| { type: 'ready' }
 	| { type: 'saveFile'; path: string; content: string }
 	/** Pull the dependencies and dependents of a file onto the canvas. */
-	| { type: 'requestLinks'; path: string };
+	| { type: 'requestLinks'; path: string }
+	/** The node was removed from the canvas; stop syncing the file. */
+	| { type: 'closeFile'; path: string };

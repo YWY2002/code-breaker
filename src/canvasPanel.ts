@@ -128,6 +128,17 @@ export class CanvasPanel {
 		this.openFiles.set(uri.fsPath, watcher);
 	}
 
+	/** Stops syncing a file whose node was removed from the canvas. */
+	private unwatchFile(path: string) {
+		this.openFiles.get(path)?.dispose();
+		this.openFiles.delete(path);
+		const pending = this.pendingSync.get(path);
+		if (pending) {
+			clearTimeout(pending);
+			this.pendingSync.delete(path);
+		}
+	}
+
 	private scheduleSync(uri: vscode.Uri) {
 		const key = uri.fsPath;
 		const pending = this.pendingSync.get(key);
@@ -169,6 +180,9 @@ export class CanvasPanel {
 				break;
 			case 'requestLinks':
 				await this.sendLinks(msg.path);
+				break;
+			case 'closeFile':
+				this.unwatchFile(msg.path);
 				break;
 		}
 	}

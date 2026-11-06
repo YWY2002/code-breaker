@@ -170,6 +170,13 @@
 	to { box-shadow: 0 0 0 8px rgba(58, 12, 163, 0); }
 }
 
+/* Armed state of the remove button while waiting for the confirming click. */
+.code-node__tool--danger,
+.code-node__tool--danger:hover:not(:disabled) {
+	background: #c1121f;
+	color: #fff;
+}
+
 .code-node__tool--muted {
 	opacity: 0.5;
 }

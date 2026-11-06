@@ -19,8 +19,10 @@ export type CodeNodeType = Node<CodeNodeData, 'code'>;
 export const CODE_NODE_SIZE = { width: 520, height: 360, minWidth: 280, minHeight: 160 };
 
 export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
-	const { updateNodeData } = useReactFlow<CodeNodeType>();
+	const { updateNodeData, deleteElements } = useReactFlow<CodeNodeType>();
 	const colorMode = useVsCodeColorMode();
+	// Removing a node with unsaved edits needs a second click within a few seconds.
+	const [confirmRemove, setConfirmRemove] = useState(false);
 
 	// Draft lives in the node; `data.content` is the last known on-disk text.
 	const [draft, setDraft] = useState(data.content);
@@ -66,6 +68,24 @@ export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
 			: data.linkState === 'none'
 				? 'No imports to or from this file in the workspace'
 				: 'Show files this imports and files that import it';
+
+	useEffect(() => {
+		if (!confirmRemove) {
+			return;
+		}
+		const timer = window.setTimeout(() => setConfirmRemove(false), 3000);
+		return () => window.clearTimeout(timer);
+	}, [confirmRemove]);
+
+	// Removes the node (and its links) from the canvas only; the file is untouched.
+	// App's onNodesDelete tells the host to stop watching it.
+	const remove = useCallback(() => {
+		if (dirty && !confirmRemove) {
+			setConfirmRemove(true);
+			return;
+		}
+		void deleteElements({ nodes: [{ id }] });
+	}, [dirty, confirmRemove, deleteElements, id]);
 
 	const save = useCallback(() => {
 		if (!dirty || saving) {
@@ -131,6 +151,19 @@ export function CodeNode({ id, data }: NodeProps<CodeNodeType>) {
 					>
 						<SaveIcon />
 					</button>
+					<button
+						type="button"
+						className={`code-node__tool nodrag${confirmRemove ? ' code-node__tool--danger' : ''}`}
+						onClick={remove}
+						title={
+							confirmRemove
+								? 'Unsaved edits will be lost. Click again to remove'
+								: 'Remove from canvas (the file is not deleted)'
+						}
+						aria-label="Remove from canvas"
+					>
+						<RemoveIcon />
+					</button>
 				</div>
 			</header>
 			<CodeEditor
@@ -154,6 +187,16 @@ function LinksIcon() {
 			<circle cx="13" cy="3.5" r="2" stroke="currentColor" strokeWidth="1.5" />
 			<circle cx="13" cy="12.5" r="2" stroke="currentColor" strokeWidth="1.5" />
 			<path d="M4.8 7.1l6.4-2.7M4.8 8.9l6.4 2.7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+		</svg>
+	);
+}
+
+function RemoveIcon() {
+	return (
+		<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<path d="M2.5 4.5h11M6.5 4.5v-2h3v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+			<path d="M4 4.5l.6 8.5a1 1 0 0 0 1 .9h4.8a1 1 0 0 0 1-.9l.6-8.5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+			<path d="M6.7 7v4M9.3 7v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
 		</svg>
 	);
 }
