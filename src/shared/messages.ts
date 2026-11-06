@@ -31,6 +31,11 @@ export type HostToWebview =
 	 * nodes for ones it doesn't have) and the edges touching `path`.
 	 */
 	| { type: 'links'; path: string; files: CodeFile[]; edges: LinkEdge[] }
+	/**
+	 * Answer to `refresh`: current content of every requested file that still
+	 * exists, the ones that no longer do, and the links among the survivors.
+	 */
+	| { type: 'refreshed'; files: CodeFile[]; missing: string[]; edges: LinkEdge[] }
 	/** `content` echoes what was written so the webview can mark the node clean. */
 	| { type: 'saved'; path: string; ok: boolean; content?: string; error?: string };
 
@@ -40,4 +45,6 @@ export type WebviewToHost =
 	/** Pull the dependencies and dependents of a file onto the canvas. */
 	| { type: 'requestLinks'; path: string }
 	/** The node was removed from the canvas; stop syncing the file. */
-	| { type: 'closeFile'; path: string };
+	| { type: 'closeFile'; path: string }
+	/** Re-read these files and recompute the links among them. */
+	| { type: 'refresh'; paths: string[] };

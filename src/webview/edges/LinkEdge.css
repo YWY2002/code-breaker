@@ -1,0 +1,37 @@
+/* Draggable ends of a dependency link. They sit in React Flow's viewport portal,
+   which is above the nodes (so they win over a node's resize strip), at the
+   two points where the link meets a node border. */
+
+.link-edge__handle {
+	--le-color: #480058;
+	--le-contrast: #f1d6f5;
+
+	position: absolute;
+	/* React Flow raises a selected or dragged node to z-index 1000; stay above
+	   that so the end is still grabbable on a selected node. */
+	z-index: 2000;
+	width: 12px;
+	height: 12px;
+	box-sizing: border-box;
+	border: 2px solid var(--le-contrast);
+	border-radius: 50%;
+	background: var(--le-color);
+	/* The portal layer ignores the pointer by default. */
+	pointer-events: all;
+	touch-action: none;
+	cursor: grab;
+	/* Hidden until the link or the end itself is hovered or selected, so idle
+	   links stay clean. Still grabbable while hidden. */
+	opacity: 0;
+	transition: opacity 120ms;
+}
+
+.link-edge__handle:hover,
+.link-edge__handle--visible {
+	opacity: 1;
+}
+
+.link-edge__handle--dragging {
+	cursor: grabbing;
+	opacity: 1;
+}

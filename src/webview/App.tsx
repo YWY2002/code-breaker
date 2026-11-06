@@ -5,6 +5,7 @@ import {
 	Background,
 	Controls,
 	MiniMap,
+	Panel,
 	useNodesState,
 	useEdgesState,
 	useReactFlow,
@@ -13,7 +14,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import type { CodeFile } from '../shared/messages';
 import { nodeTypes, CODE_NODE_SIZE, type CodeNodeType } from './nodes';
-import { linkEdgeOptions, toEdge } from './edges';
+import { edgeTypes, linkEdgeOptions, toEdge } from './edges';
 import { placeBeside } from './layout';
 import { onHostMessage, postToHost } from './vscode';
 import { useVsCodeColorMode } from './theme';
@@ -52,7 +53,18 @@ function Canvas() {
 	const colorMode = useVsCodeColorMode();
 	const [nodes, setNodes, onNodesChange] = useNodesState<CodeNodeType>([]);
 	const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-	const { fitView } = useReactFlow();
+	const { fitView, getNodes } = useReactFlow();
+	const [refreshing, setRefreshing] = useState(false);
+
+	// Re-reads every file on the canvas and recomputes the links among them.
+	const refresh = () => {
+		const paths = getNodes().map(n => n.id);
+		if (!paths.length || refreshing) {
+			return;
+		}
+		setRefreshing(true);
+		postToHost({ type: 'refresh', paths });
+	};
 
 	useEffect(() => {
 		// Short delay so newly added nodes are measured before framing.
@@ -119,6 +131,38 @@ function Canvas() {
 						frame();
 					}
 					break;
+				case 'refreshed': {
+					const fresh = new Map(msg.files.map(f => [f.path, f]));
+					const gone = new Set(msg.missing);
+					// New content flows through the same path as a live edit: a
+					// node with unsaved edits keeps its draft and offers reload.
+					setNodes(current =>
+						current
+							.filter(n => !gone.has(n.id))
+							.map(n => {
+								const file = fresh.get(n.id);
+								return file ? { ...n, data: { ...n.data, ...file, linkState: 'idle' } } : n;
+							})
+					);
+					// Links among refreshed files are replaced wholesale; links to
+					// nodes added while the refresh was in flight are kept.
+					// A link that survives keeps its object, and with it any
+					// endpoints the user pinned by hand.
+					setEdges(current => {
+						const previous = new Map(current.map(e => [e.id, e]));
+						return [
+							...current.filter(
+								e =>
+									!gone.has(e.source) &&
+									!gone.has(e.target) &&
+									!(fresh.has(e.source) && fresh.has(e.target))
+							),
+							...msg.edges.map(toEdge).map(e => previous.get(e.id) ?? e),
+						];
+					});
+					setRefreshing(false);
+					break;
+				}
 				case 'saved':
 					setNodes(current =>
 						current.map(n => {
@@ -140,12 +184,22 @@ function Canvas() {
 		return unsubscribe;
 	}, [setNodes, setEdges, fitView]);
 
+	// Anything waiting on the host: a canvas refresh, a link lookup, a save.
+	const busy =
+		refreshing || nodes.some(n => n.data.linkState === 'loading' || n.data.saveState === 'saving');
+
 	return (
 		<div className="canvas">
+			{busy && (
+				<div className="canvas__progress" role="progressbar" aria-label="Loading" aria-busy="true">
+					<div className="canvas__progress-bar" />
+				</div>
+			)}
 			<ReactFlow
 				nodes={nodes}
 				edges={edges}
 				nodeTypes={nodeTypes}
+				edgeTypes={edgeTypes}
 				defaultEdgeOptions={linkEdgeOptions}
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}
@@ -164,6 +218,22 @@ function Canvas() {
 				<Background />
 				<Controls />
 				<MiniMap pannable zoomable />
+				{/* Canvas-level tools; more can sit beside Refresh later. */}
+				<Panel position="top-right" className="canvas__toolbar">
+					<button
+						type="button"
+						className={`canvas__button${refreshing ? ' canvas__button--busy' : ''}`}
+						onClick={refresh}
+						disabled={refreshing || nodes.length === 0}
+						title="Reload every file on the canvas and recompute their links"
+					>
+						<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+							<path d="M13 8a5 5 0 1 1-1.5-3.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+							<path d="M13 2.5v3h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+						</svg>
+						Refresh
+					</button>
+				</Panel>
 			</ReactFlow>
 			{folder && <div className="canvas__folder" title={folder}>{folder}</div>}
 		</div>

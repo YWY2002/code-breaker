@@ -34,3 +34,80 @@ body,
 	text-overflow: ellipsis;
 	pointer-events: none;
 }
+
+/* Canvas-level toolbar (top right). */
+.canvas__toolbar {
+	display: flex;
+	gap: 6px;
+}
+
+.canvas__button {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 26px;
+	padding: 0 10px;
+	border: 1px solid var(--vscode-button-border, transparent);
+	border-radius: 4px;
+	background: var(--vscode-button-secondaryBackground, #3a3d41);
+	color: var(--vscode-button-secondaryForeground, #fff);
+	font-family: inherit;
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.canvas__button:hover:not(:disabled) {
+	background: var(--vscode-button-secondaryHoverBackground, #45494e);
+}
+
+.canvas__button:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder, #007fd4);
+	outline-offset: 1px;
+}
+
+.canvas__button:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.canvas__button--busy svg {
+	animation: canvas-spin 800ms linear infinite;
+}
+
+@keyframes canvas-spin {
+	to { transform: rotate(360deg); }
+}
+
+/* Indeterminate loading bar across the top of the canvas, shown while any
+   request to the extension host is pending. */
+.canvas__progress {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 10;
+	height: 3px;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+.canvas__progress-bar {
+	width: 30%;
+	height: 100%;
+	border-radius: 2px;
+	background: var(--vscode-progressBar-background, #0e70c0);
+	animation: canvas-progress 1.2s ease-in-out infinite;
+}
+
+@keyframes canvas-progress {
+	from { transform: translateX(-100%); }
+	to { transform: translateX(334%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.canvas__progress-bar {
+		width: 100%;
+		animation: none;
+		opacity: 0.7;
+	}
+}

@@ -18,6 +18,7 @@ import type { DependencyAnalyzer, ImportSpec, ResolveContext } from './types';
 export const pythonAnalyzer: DependencyAnalyzer = {
 	id: 'python',
 	languageIds: ['python'],
+	fileExtensions: ['.py'],
 	fileGlob: '**/*.py',
 	extractImports,
 	resolve,

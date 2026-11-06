@@ -30,6 +30,8 @@ export interface DependencyAnalyzer {
 	readonly id: string;
 	/** VS Code language ids this analyzer handles. */
 	readonly languageIds: readonly string[];
+	/** File extensions this analyzer handles, with the dot, e.g. ".py". */
+	readonly fileExtensions: readonly string[];
 	/** Glob for the files to index, e.g. "**​/*.py". */
 	readonly fileGlob: string;
 	/** Pull import statements out of a file's text. */

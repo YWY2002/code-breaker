@@ -128,6 +128,35 @@ export class CanvasPanel {
 		this.openFiles.set(uri.fsPath, watcher);
 	}
 
+	/**
+	 * Canvas-wide refresh: re-reads every file on the canvas (editor buffer if
+	 * open, else disk), reports the ones that no longer exist, and recomputes
+	 * the links among the rest.
+	 */
+	private async refresh(paths: string[]) {
+		const files: CodeFile[] = [];
+		const missing: string[] = [];
+		for (const path of paths) {
+			const uri = vscode.Uri.file(path);
+			try {
+				await vscode.workspace.fs.stat(uri);
+				files.push(await this.readCodeFile(uri));
+				this.watchFile(uri);
+			} catch {
+				missing.push(path);
+				this.unwatchFile(path);
+			}
+		}
+		let edges: LinkEdge[] = [];
+		try {
+			edges = await this.index.linksAmong(files.map(f => f.path));
+		} catch (err) {
+			const error = err instanceof Error ? err.message : String(err);
+			vscode.window.showErrorMessage(`Code Breaker: could not recompute links: ${error}`);
+		}
+		this.post({ type: 'refreshed', files, missing, edges });
+	}
+
 	/** Stops syncing a file whose node was removed from the canvas. */
 	private unwatchFile(path: string) {
 		this.openFiles.get(path)?.dispose();
@@ -183,6 +212,9 @@ export class CanvasPanel {
 				break;
 			case 'closeFile':
 				this.unwatchFile(msg.path);
+				break;
+			case 'refresh':
+				await this.refresh(msg.paths);
 				break;
 		}
 	}

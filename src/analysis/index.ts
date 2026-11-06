@@ -11,6 +11,11 @@ export function analyzerForLanguage(languageId: string | undefined): DependencyA
 	return languageId ? analyzers.find(a => a.languageIds.includes(languageId)) : undefined;
 }
 
+function analyzerForPath(path: string): DependencyAnalyzer | undefined {
+	const lower = path.toLowerCase();
+	return analyzers.find(a => a.fileExtensions.some(ext => lower.endsWith(ext)));
+}
+
 const EXCLUDE_GLOB = '**/{node_modules,.git,.venv,venv,env,__pycache__,site-packages,dist,build,out}/**';
 const MAX_FILES = 5000;
 const CONCURRENCY = 16;
@@ -42,6 +47,31 @@ export class DependencyIndex implements vscode.Disposable {
 
 	public dependentsOf(path: string): string[] {
 		return [...(this.dependents.get(path) ?? [])];
+	}
+
+	/**
+	 * Re-analyzes just these files from their current text and returns the
+	 * import edges among them. Does not need (or trigger) the workspace scan.
+	 */
+	public async linksAmong(paths: string[]): Promise<{ source: string; target: string }[]> {
+		// Files may have been added or removed since the last look.
+		this.statCache.clear();
+		await Promise.all(
+			paths.map(path => {
+				const analyzer = analyzerForPath(path);
+				return analyzer ? this.analyze(vscode.Uri.file(path), analyzer) : undefined;
+			})
+		);
+		const wanted = new Set(paths);
+		const edges: { source: string; target: string }[] = [];
+		for (const source of paths) {
+			for (const target of this.deps.get(source) ?? []) {
+				if (wanted.has(target)) {
+					edges.push({ source, target });
+				}
+			}
+		}
+		return edges;
 	}
 
 	private async build() {
